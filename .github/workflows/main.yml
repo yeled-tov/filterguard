@@ -86,9 +86,10 @@ jobs:
       - name: 📦 Add dependencies
         run: |
           GRADLE=android/app/build.gradle
-          if ! grep -q "androidx.core:core" "$GRADLE"; then
+          if [ -f "$GRADLE" ] && ! grep -q "androidx.core:core" "$GRADLE"; then
             sed -i '/dependencies {/a\    implementation "androidx.core:core:1.12.0"' "$GRADLE"
           fi
+          echo "done"
 
       - name: 🔓 Gradle permission
         run: chmod +x android/gradlew
