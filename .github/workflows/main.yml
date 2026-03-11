@@ -28,7 +28,7 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: 📚 Install deps
-        run: npm install
+        run: npm install && npm install -g @capacitor/cli
       - name: 🔨 Build React
         run: npm run build
 
