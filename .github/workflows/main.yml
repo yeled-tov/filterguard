@@ -1,0 +1,106 @@
+name: 🛡️ Build FilterGuard APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: ☕ Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: 📦 Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: 🤖 Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 📚 Install deps
+        run: npm ci
+
+      - name: 🔨 Build React
+        run: npm run build
+
+      - name: ➕ Add Android
+        run: npx cap add android || true
+
+      - name: 🔄 Sync Capacitor
+        run: npx cap sync android
+
+      - name: ☕ Copy Java sources
+        run: |
+          DEST=android/app/src/main/java/com/filterguard/browser
+          mkdir -p "$DEST"
+          cp android/app/src/main/java/com/filterguard/browser/FilterGuardWebViewClient.java "$DEST/" 2>/dev/null || true
+          cp android/app/src/main/java/com/filterguard/browser/FilterVpnService.java        "$DEST/" 2>/dev/null || true
+          cp android/app/src/main/java/com/filterguard/browser/MainActivity.java            "$DEST/" 2>/dev/null || true
+          cp android/app/src/main/java/com/filterguard/browser/BootReceiver.java            "$DEST/" 2>/dev/null || true
+
+      - name: 📄 Patch Manifest
+        run: cp android-patches/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
+
+      - name: 🎨 Copy icons
+        run: |
+          for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            mkdir -p android/app/src/main/res/mipmap-${density}
+            cp android-patches/res/mipmap-${density}/ic_launcher.png android/app/src/main/res/mipmap-${density}/ic_launcher.png
+            cp android-patches/res/mipmap-${density}/ic_launcher_round.png android/app/src/main/res/mipmap-${density}/ic_launcher_round.png
+          done
+
+      - name: 🎨 Set colors
+        run: |
+          mkdir -p android/app/src/main/res/values
+          cat > android/app/src/main/res/values/colors.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="colorPrimary">#ffffff</color>
+              <color name="colorPrimaryDark">#dee1e6</color>
+              <color name="colorAccent">#1a73e8</color>
+              <color name="ic_launcher_background">#161C36</color>
+          </resources>
+          EOF
+          sed -i 's|<string name="app_name">.*</string>|<string name="app_name">FilterGuard</string>|g' android/app/src/main/res/values/strings.xml 2>/dev/null || true
+
+      - name: 📁 File paths
+        run: |
+          mkdir -p android/app/src/main/res/xml
+          cat > android/app/src/main/res/xml/file_paths.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <paths>
+              <external-path name="external_files" path="." />
+              <cache-path name="cache" path="." />
+          </paths>
+          EOF
+
+      - name: 📦 Add dependencies
+        run: |
+          GRADLE=android/app/build.gradle
+          if ! grep -q "androidx.core:core" "$GRADLE"; then
+            sed -i '/dependencies {/a\    implementation "androidx.core:core:1.12.0"' "$GRADLE"
+          fi
+
+      - name: 🔓 Gradle permission
+        run: chmod +x android/gradlew
+
+      - name: 🏗️ Build APK
+        run: cd android && ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: 📤 Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: FilterGuard-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
