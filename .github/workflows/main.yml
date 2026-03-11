@@ -33,10 +33,10 @@ jobs:
         run: npm run build
 
       - name: ➕ Add Android
-        run: npx cap add android || true
+        run: ./node_modules/.bin/cap add android || true
 
       - name: 🔄 Sync Capacitor
-        run: npx cap sync android
+        run: ./node_modules/.bin/cap sync android
 
       - name: ☕ Copy Java sources
         run: |
@@ -92,10 +92,10 @@ jobs:
           echo "done"
 
       - name: 🔓 Gradle permission
-        run: chmod +x android/gradlew
+        run: find . -name "gradlew" -exec chmod +x {} \; || true
 
       - name: 🏗️ Build APK
-        run: cd android && ./gradlew assembleDebug --no-daemon --stacktrace
+        run: cd android && chmod +x gradlew && ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: 📤 Upload APK
         uses: actions/upload-artifact@v4
