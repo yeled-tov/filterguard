@@ -37,7 +37,7 @@ jobs:
         run: npx cap add android
 
       - name: Sync Capacitor
-        run: npx cap add android || true
+        run: rm -rf android && npx cap add android
 
       - name: Verify gradlew exists
         run: ls -la android/ && ls -la android/gradlew
